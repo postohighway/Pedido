@@ -263,15 +263,12 @@ function calcular() {
 
     let compras;
     if (totalNecessidade <= 0.5) {
-      // não precisa comprar nada
       compras = {};
       for (const p of produtos) compras[p] = 0;
     } else {
-      // se os tanques não comportam 15k, faz pedido fracionado
       if (totalMax < CAMINHAO_CAPACIDADE) {
         compras = pedidoFracionado(dados);
       } else {
-        // se comporta, tenta usar os compartimentos exatos
         compras = pedidoComCompartimentos(produtos, dados);
       }
     }
@@ -287,7 +284,6 @@ function pedidoFracionado(dados) {
   let totalMin = 0;
   let espacoTotal = 0;
 
-  // Primeiro: garantir consumo do período dentro dos limites de tanque
   for (const p in dados) {
     const d = dados[p];
     const min = Math.min(d.necessidade_min, d.espaco_livre);
@@ -299,10 +295,9 @@ function pedidoFracionado(dados) {
   const alvo = Math.min(CAMINHAO_CAPACIDADE, espacoTotal);
   let restante = alvo - totalMin;
 
-  // Sobrou espaço no caminhão -> distribui onde gira mais
   if (restante > 0) {
     const ordenados = Object.entries(dados)
-      .sort((a,b)=>b[1].consumo - a[1].consumo); // maior consumo primeiro
+      .sort((a,b)=>b[1].consumo - a[1].consumo);
     for (const [p,d] of ordenados) {
       const capExtra = d.espaco_livre - compras[p];
       if (capExtra <= 0) continue;
@@ -337,24 +332,20 @@ function pedidoComCompartimentos(produtos, dados) {
       vol[p] += COMPARTIMENTOS[i];
     }
 
-    // Respeita limite de tanque (estoque + trânsito + pedido ≤ capacidade)
     let ok = true;
     for (const p of produtos) {
       if (vol[p] > dados[p].espaco_livre + 1e-6) {
-        ok = false;
-        break;
+        ok = false; break;
       }
     }
     if (!ok) continue;
 
-    // Calcula "falta" de cada produto depois do pedido simulado
     let faltaTotal = 0;
     for (const p of produtos) {
       const falta = Math.max(dados[p].necessidade_min - vol[p], 0);
       faltaTotal += falta;
     }
 
-    // Usa consumo como segundo critério (prefere encher produtos que giram mais)
     const consumoScore = produtos
       .map(p => vol[p] * dados[p].consumo)
       .reduce((a,b)=>a+b,0);
