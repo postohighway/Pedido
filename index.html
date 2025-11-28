@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -57,6 +56,28 @@
       font-size: 11px;
       margin: 2px 0 0;
       color: #9ca3af;
+    }
+    .dias-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+    .dias-row input {
+      width: 70px;
+      box-sizing: border-box;
+      padding: 5px 6px;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 12px;
+      -webkit-appearance: none;
+      appearance: none;
+      text-align: center;
     }
     .grid {
       display: grid;
@@ -128,8 +149,14 @@
       <div class="logo-circle">HW</div>
       <div class="title-block">
         <h1>Pedido de Combustível</h1>
-        <p>Caminhão 15.000 L • tanques e frete otimizados</p>
+        <p>Caminhão 15.000 L • Tanques e frete otimizados</p>
       </div>
+    </div>
+
+    <div class="dias-row">
+      <span>Dias de consumo:</span>
+      <input id="dias" type="number" min="1" value="2" inputmode="decimal">
+      <span style="font-size:11px;color:#9ca3af;">(ex.: sábado → 3 dias)</span>
     </div>
 
     <div class="grid grid-header">
@@ -170,15 +197,18 @@
     <button class="btn" onclick="calcular()">Calcular pedido</button>
 
     <pre id="saida">Preencha os campos acima e toque em "Calcular pedido".</pre>
-    <div class="hint">Regra: 2 dias de consumo + limite dos tanques + compartimentos do caminhão (5k, 3k, 3k, 2k, 2k).</div>
+    <div class="hint">
+      Limites de tanque (L): GC 30.000 • GA 15.000 • Diesel 15.000 • Etanol 15.000.
+      Caminhão: 5k + 3k + 3k + 2k + 2k (15.000 L).
+    </div>
   </div>
 </div>
 
 <script>
 const CAPACIDADES = {
-  "Gasolina Comum": 20000,
-  "Gasolina Aditivada": 10000,
-  "Diesel S10": 20000,
+  "Gasolina Comum": 30000,
+  "Gasolina Aditivada": 15000,
+  "Diesel S10": 15000,
   "Etanol": 15000
 };
 
@@ -193,12 +223,22 @@ function lerNumero(id) {
   return isNaN(n) ? 0 : n;
 }
 
+function lerDias() {
+  const el = document.getElementById("dias");
+  if (!el) return 2;
+  const v = (el.value || "").replace(",", ".");
+  const n = parseFloat(v);
+  if (isNaN(n) || n <= 0) return 2;
+  return n;
+}
+
 function calcular() {
   try {
     const produtos = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
     const dados = {};
     let totalMax = 0;
     let totalNecessidade = 0;
+    const dias = lerDias();
 
     for (const p of produtos) {
       let prefix;
@@ -212,8 +252,8 @@ function calcular() {
       const transito = lerNumero(prefix + "_transito");
       const capacidade = CAPACIDADES[p];
 
-      const consumo2d = consumo * 2;
-      const necessidade_min = Math.max(consumo2d - (estoque + transito), 0);
+      const consumoPeriodo = consumo * dias;
+      const necessidade_min = Math.max(consumoPeriodo - (estoque + transito), 0);
       const espaco_livre = Math.max(capacidade - (estoque + transito), 0);
 
       dados[p] = { consumo, necessidade_min, espaco_livre };
@@ -223,17 +263,20 @@ function calcular() {
 
     let compras;
     if (totalNecessidade <= 0.5) {
+      // não precisa comprar nada
       compras = {};
       for (const p of produtos) compras[p] = 0;
     } else {
+      // se os tanques não comportam 15k, faz pedido fracionado
       if (totalMax < CAMINHAO_CAPACIDADE) {
         compras = pedidoFracionado(dados);
       } else {
+        // se comporta, tenta usar os compartimentos exatos
         compras = pedidoComCompartimentos(produtos, dados);
       }
     }
 
-    mostrarResultado(compras);
+    mostrarResultado(compras, dias);
   } catch (e) {
     alert("Erro nos valores digitados.");
   }
@@ -244,6 +287,7 @@ function pedidoFracionado(dados) {
   let totalMin = 0;
   let espacoTotal = 0;
 
+  // Primeiro: garantir consumo do período dentro dos limites de tanque
   for (const p in dados) {
     const d = dados[p];
     const min = Math.min(d.necessidade_min, d.espaco_livre);
@@ -255,9 +299,10 @@ function pedidoFracionado(dados) {
   const alvo = Math.min(CAMINHAO_CAPACIDADE, espacoTotal);
   let restante = alvo - totalMin;
 
+  // Sobrou espaço no caminhão -> distribui onde gira mais
   if (restante > 0) {
     const ordenados = Object.entries(dados)
-      .sort((a,b)=>b[1].consumo - a[1].consumo);
+      .sort((a,b)=>b[1].consumo - a[1].consumo); // maior consumo primeiro
     for (const [p,d] of ordenados) {
       const capExtra = d.espaco_livre - compras[p];
       if (capExtra <= 0) continue;
@@ -292,20 +337,24 @@ function pedidoComCompartimentos(produtos, dados) {
       vol[p] += COMPARTIMENTOS[i];
     }
 
+    // Respeita limite de tanque (estoque + trânsito + pedido ≤ capacidade)
     let ok = true;
     for (const p of produtos) {
       if (vol[p] > dados[p].espaco_livre + 1e-6) {
-        ok = false; break;
+        ok = false;
+        break;
       }
     }
     if (!ok) continue;
 
+    // Calcula "falta" de cada produto depois do pedido simulado
     let faltaTotal = 0;
     for (const p of produtos) {
       const falta = Math.max(dados[p].necessidade_min - vol[p], 0);
       faltaTotal += falta;
     }
 
+    // Usa consumo como segundo critério (prefere encher produtos que giram mais)
     const consumoScore = produtos
       .map(p => vol[p] * dados[p].consumo)
       .reduce((a,b)=>a+b,0);
@@ -326,10 +375,10 @@ function pedidoComCompartimentos(produtos, dados) {
   return bestAlloc;
 }
 
-function mostrarResultado(compras) {
+function mostrarResultado(compras, dias) {
   const ordem = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
   let total = 0;
-  let txt = "";
+  let txt = "Pedido considerando " + dias + " dia(s) de consumo.\n\n";
   for (const p of ordem) {
     const v = Math.round(compras[p] || 0);
     total += v;
