@@ -1,0 +1,343 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Pedido Combustível HW (Mobile)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+    }
+    .app {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px 14px 24px;
+    }
+    .card {
+      background: #020617;
+      border-radius: 16px;
+      padding: 16px 14px 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+      border: 1px solid #1f2937;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .logo-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #22c55e, #15803d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      color: #e5e7eb;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+    }
+    .title-block h1 {
+      font-size: 16px;
+      margin: 0;
+    }
+    .title-block p {
+      font-size: 11px;
+      margin: 2px 0 0;
+      color: #9ca3af;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr 0.9fr 1fr;
+      gap: 4px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .grid-header {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .label-prod {
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+    input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 5px 6px;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 12px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input[type="number"]:focus {
+      outline: 1px solid #22c55e;
+      border-color: #22c55e;
+    }
+    .btn {
+      width: 100%;
+      margin-top: 14px;
+      padding: 9px 10px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #22c55e, #4ade80);
+      color: #022c22;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    pre {
+      margin: 12px 0 0;
+      background: #020617;
+      border-radius: 12px;
+      padding: 10px 10px;
+      font-family: Menlo, ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      border: 1px solid #1f2937;
+      white-space: pre-line;
+    }
+    .hint {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <div class="header">
+      <div class="logo-circle">HW</div>
+      <div class="title-block">
+        <h1>Pedido de Combustível</h1>
+        <p>Caminhão 15.000 L • tanques e frete otimizados</p>
+      </div>
+    </div>
+
+    <div class="grid grid-header">
+      <div>Produto</div>
+      <div>Estoque</div>
+      <div>Consumo/dia</div>
+      <div>Em trânsito</div>
+    </div>
+
+    <div class="grid">
+      <div class="label-prod">Gasolina Comum</div>
+      <div><input id="gc_estoque" type="number" inputmode="decimal"></div>
+      <div><input id="gc_consumo" type="number" inputmode="decimal"></div>
+      <div><input id="gc_transito" type="number" inputmode="decimal"></div>
+    </div>
+
+    <div class="grid">
+      <div class="label-prod">Gasolina Aditivada</div>
+      <div><input id="ga_estoque" type="number" inputmode="decimal"></div>
+      <div><input id="ga_consumo" type="number" inputmode="decimal"></div>
+      <div><input id="ga_transito" type="number" inputmode="decimal"></div>
+    </div>
+
+    <div class="grid">
+      <div class="label-prod">Diesel S10</div>
+      <div><input id="d_estoque" type="number" inputmode="decimal"></div>
+      <div><input id="d_consumo" type="number" inputmode="decimal"></div>
+      <div><input id="d_transito" type="number" inputmode="decimal"></div>
+    </div>
+
+    <div class="grid">
+      <div class="label-prod">Etanol</div>
+      <div><input id="e_estoque" type="number" inputmode="decimal"></div>
+      <div><input id="e_consumo" type="number" inputmode="decimal"></div>
+      <div><input id="e_transito" type="number" inputmode="decimal"></div>
+    </div>
+
+    <button class="btn" onclick="calcular()">Calcular pedido</button>
+
+    <pre id="saida">Preencha os campos acima e toque em "Calcular pedido".</pre>
+    <div class="hint">Regra: 2 dias de consumo + limite dos tanques + compartimentos do caminhão (5k, 3k, 3k, 2k, 2k).</div>
+  </div>
+</div>
+
+<script>
+const CAPACIDADES = {
+  "Gasolina Comum": 20000,
+  "Gasolina Aditivada": 10000,
+  "Diesel S10": 20000,
+  "Etanol": 15000
+};
+
+const COMPARTIMENTOS = [5000, 3000, 3000, 2000, 2000];
+const CAMINHAO_CAPACIDADE = COMPARTIMENTOS.reduce((a,b)=>a+b,0);
+
+function lerNumero(id) {
+  const el = document.getElementById(id);
+  if (!el) return 0;
+  const v = (el.value || "").replace(",", ".");
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function calcular() {
+  try {
+    const produtos = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
+    const dados = {};
+    let totalMax = 0;
+    let totalNecessidade = 0;
+
+    for (const p of produtos) {
+      let prefix;
+      if (p === "Gasolina Comum") prefix = "gc";
+      else if (p === "Gasolina Aditivada") prefix = "ga";
+      else if (p === "Diesel S10") prefix = "d";
+      else prefix = "e";
+
+      const estoque = lerNumero(prefix + "_estoque");
+      const consumo = lerNumero(prefix + "_consumo");
+      const transito = lerNumero(prefix + "_transito");
+      const capacidade = CAPACIDADES[p];
+
+      const consumo2d = consumo * 2;
+      const necessidade_min = Math.max(consumo2d - (estoque + transito), 0);
+      const espaco_livre = Math.max(capacidade - (estoque + transito), 0);
+
+      dados[p] = { consumo, necessidade_min, espaco_livre };
+      totalMax += espaco_livre;
+      totalNecessidade += necessidade_min;
+    }
+
+    let compras;
+    if (totalNecessidade <= 0.5) {
+      compras = {};
+      for (const p of produtos) compras[p] = 0;
+    } else {
+      if (totalMax < CAMINHAO_CAPACIDADE) {
+        compras = pedidoFracionado(dados);
+      } else {
+        compras = pedidoComCompartimentos(produtos, dados);
+      }
+    }
+
+    mostrarResultado(compras);
+  } catch (e) {
+    alert("Erro nos valores digitados.");
+  }
+}
+
+function pedidoFracionado(dados) {
+  const compras = {};
+  let totalMin = 0;
+  let espacoTotal = 0;
+
+  for (const p in dados) {
+    const d = dados[p];
+    const min = Math.min(d.necessidade_min, d.espaco_livre);
+    compras[p] = min;
+    totalMin += min;
+    espacoTotal += d.espaco_livre;
+  }
+
+  const alvo = Math.min(CAMINHAO_CAPACIDADE, espacoTotal);
+  let restante = alvo - totalMin;
+
+  if (restante > 0) {
+    const ordenados = Object.entries(dados)
+      .sort((a,b)=>b[1].consumo - a[1].consumo);
+    for (const [p,d] of ordenados) {
+      const capExtra = d.espaco_livre - compras[p];
+      if (capExtra <= 0) continue;
+      const add = Math.min(capExtra, restante);
+      compras[p] += add;
+      restante -= add;
+      if (restante <= 0) break;
+    }
+  }
+
+  const arred = {};
+  for (const p in compras) arred[p] = Math.round(compras[p]);
+  return arred;
+}
+
+function pedidoComCompartimentos(produtos, dados) {
+  let bestScore = null;
+  let bestAlloc = null;
+
+  const n = produtos.length;
+  const totalCombos = Math.pow(n, COMPARTIMENTOS.length);
+
+  for (let mask = 0; mask < totalCombos; mask++) {
+    const vol = {};
+    produtos.forEach(p => vol[p] = 0);
+
+    let tmp = mask;
+    for (let i = 0; i < COMPARTIMENTOS.length; i++) {
+      const prodIdx = tmp % n;
+      tmp = Math.floor(tmp / n);
+      const p = produtos[prodIdx];
+      vol[p] += COMPARTIMENTOS[i];
+    }
+
+    let ok = true;
+    for (const p of produtos) {
+      if (vol[p] > dados[p].espaco_livre + 1e-6) {
+        ok = false; break;
+      }
+    }
+    if (!ok) continue;
+
+    let faltaTotal = 0;
+    for (const p of produtos) {
+      const falta = Math.max(dados[p].necessidade_min - vol[p], 0);
+      faltaTotal += falta;
+    }
+
+    const consumoScore = produtos
+      .map(p => vol[p] * dados[p].consumo)
+      .reduce((a,b)=>a+b,0);
+
+    const score = [faltaTotal, -consumoScore];
+
+    if (
+      bestScore === null ||
+      score[0] < bestScore[0] ||
+      (score[0] === bestScore[0] && score[1] < bestScore[1])
+    ) {
+      bestScore = score;
+      bestAlloc = vol;
+    }
+  }
+
+  if (!bestAlloc) return pedidoFracionado(dados);
+  return bestAlloc;
+}
+
+function mostrarResultado(compras) {
+  const ordem = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
+  let total = 0;
+  let txt = "";
+  for (const p of ordem) {
+    const v = Math.round(compras[p] || 0);
+    total += v;
+    txt += p + ": " + v + " L\n";
+  }
+  txt += "\nTotal do pedido: " + total + " L";
+  document.getElementById("saida").textContent = txt;
+}
+</script>
+</body>
+</html>
