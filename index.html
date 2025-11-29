@@ -19,7 +19,7 @@
     }
     .app {
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       padding: 16px 14px 24px;
     }
     .card {
@@ -28,6 +28,7 @@
       padding: 16px 14px 18px;
       box-shadow: 0 18px 40px rgba(0,0,0,0.6);
       border: 1px solid #1f2937;
+      margin-bottom: 16px;
     }
     .header {
       display: flex;
@@ -65,6 +66,7 @@
       margin-bottom: 4px;
       font-size: 12px;
       color: #e5e7eb;
+      flex-wrap: wrap;
     }
     .dias-row input {
       width: 70px;
@@ -110,9 +112,21 @@
       outline: 1px solid #22c55e;
       border-color: #22c55e;
     }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 11px;
+      padding: 6px 8px;
+      resize: vertical;
+      min-height: 70px;
+    }
     .btn {
       width: 100%;
-      margin-top: 14px;
+      margin-top: 10px;
       padding: 9px 10px;
       border-radius: 999px;
       border: none;
@@ -120,8 +134,22 @@
       font-weight: 600;
       background: linear-gradient(135deg, #22c55e, #4ade80);
       color: #022c22;
+      cursor: pointer;
     }
-    .btn:active {
+    .btn-secondary {
+      width: 100%;
+      margin-top: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: none;
+      font-size: 12px;
+      font-weight: 500;
+      background: linear-gradient(135deg, #38bdf8, #22c55e);
+      color: #022c22;
+      cursor: pointer;
+    }
+    .btn:active,
+    .btn-secondary:active {
       transform: scale(0.98);
     }
     pre {
@@ -140,10 +168,27 @@
       color: #6b7280;
       text-align: center;
     }
+    h2, h3 {
+      margin: 4px 0 6px;
+      font-size: 14px;
+    }
+    p {
+      margin: 2px 0 6px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    label {
+      font-size: 11px;
+      color: #e5e7eb;
+      display: block;
+      margin-bottom: 4px;
+    }
   </style>
 </head>
 <body>
 <div class="app">
+
+  <!-- CARD PRINCIPAL: PEDIDO -->
   <div class="card">
     <div class="header">
       <div class="logo-circle">HW</div>
@@ -154,9 +199,9 @@
     </div>
 
     <div class="dias-row">
-      <span>Dias de consumo:</span>
+      <span>Dias de consumo para o pedido:</span>
       <input id="dias" type="number" min="1" value="2" inputmode="decimal">
-      <span style="font-size:11px;color:#9ca3af;">(ex.: sábado → 3 dias)</span>
+      <span style="font-size:11px;color:#9ca3af;">(ex.: pedido de sábado → 3 dias)</span>
     </div>
 
     <div class="grid grid-header">
@@ -196,7 +241,7 @@
 
     <button class="btn" type="button" onclick="calcular()">Calcular pedido</button>
 
-    <pre id="saida">Preencha os campos acima e toque em "Calcular pedido".</pre>
+    <pre id="saida">Preencha os campos (ou importe dos PDFs) e toque em "Calcular pedido".</pre>
     <div class="hint">
       Limites de tanque (L): GC 30.000 • GA 15.000 • Diesel 15.000 • Etanol 15.000.
       Caminhão: 5k + 3k + 3k + 2k + 2k (15.000 L).
@@ -204,9 +249,49 @@
       Cada pedido calculado é salvo localmente no aparelho para futuros históricos.
     </div>
   </div>
+
+  <!-- CARD IMPORTAÇÃO DOS RELATÓRIOS -->
+  <div class="card">
+    <h2>Importar dados do sistema (PDF → texto)</h2>
+
+    <h3>1) Relatório de vendas (consumo)</h3>
+    <p>
+      No leitor de PDF: <strong>Ctrl+A → Ctrl+C</strong> e cole abaixo o texto bruto
+      do relatório <strong>"Vendas de Produtos por SubCategoria"</strong>.
+    </p>
+    <label for="dias_relatorio_consumo">
+      Dias que o relatório de vendas está somando (normalmente 1 dia):
+    </label>
+    <input id="dias_relatorio_consumo" type="number" min="1" value="1" inputmode="decimal"
+           style="width:90px;margin-bottom:6px;">
+
+    <textarea id="relatorio_consumo" rows="5"
+      placeholder="Cole aqui o texto do relatório de vendas (consumo)..."></textarea>
+
+    <button type="button" class="btn-secondary" onclick="preencherConsumoDeRelatorio()">
+      Ler relatório de vendas e preencher consumo/dia
+    </button>
+
+    <hr style="margin: 16px 0; border:none; border-top:1px solid #1f2937;">
+
+    <h3>2) Relatório de saldos (estoque)</h3>
+    <p>
+      No leitor de PDF: <strong>Ctrl+A → Ctrl+C</strong> e cole abaixo o texto bruto
+      do relatório <strong>"Relatório de Saldos do Estoque"</strong>.
+    </p>
+
+    <textarea id="relatorio_saldo" rows="5"
+      placeholder="Cole aqui o texto do relatório de saldos (estoque)..."></textarea>
+
+    <button type="button" class="btn-secondary" onclick="preencherEstoqueDeSaldo()">
+      Ler relatório de saldos e preencher estoque atual
+    </button>
+  </div>
+
 </div>
 
 <script>
+// ------------------- CONSTANTES DO SISTEMA -------------------
 const CAPACIDADES = {
   "Gasolina Comum": 30000,
   "Gasolina Aditivada": 15000,
@@ -220,6 +305,7 @@ const CAMINHAO_CAPACIDADE = COMPARTIMENTOS.reduce((a,b)=>a+b,0);
 // dias entre o pedido e a descarga do caminhão
 const LEAD_TIME_DIAS = 1;
 
+// ------------------- FUNÇÕES BÁSICAS -------------------
 function lerNumero(id) {
   const el = document.getElementById(id);
   if (!el) return 0;
@@ -237,6 +323,103 @@ function lerDias() {
   return n;
 }
 
+function parseNumeroBrasileiro(txt) {
+  if (!txt) return null;
+  const limpo = txt.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(limpo);
+  return isNaN(n) ? null : n;
+}
+
+// ------------------- LEITURA DOS RELATÓRIOS -------------------
+
+// Consumo: pega o primeiro número depois do rótulo
+function extrairPrimeiroNumeroDepoisDoRotulo(texto, rotuloRegex) {
+  const regex = new RegExp(rotuloRegex + "\\s+([0-9\\.]+,[0-9]+)", "i");
+  const m = texto.match(regex);
+  if (!m) return null;
+  return parseNumeroBrasileiro(m[1]);
+}
+
+// Saldo: pega o número de litros depois do "l"
+function extrairSaldoLitros(texto, rotuloRegex) {
+  // Exemplo de linha no saldo: "GASOLINA COMUM         l 8.854,800"
+  const regex = new RegExp(rotuloRegex + "\\s+l?\\s*([0-9\\.]+,[0-9]+)", "i");
+  const m = texto.match(regex);
+  if (!m) return null;
+  const valor = parseNumeroBrasileiro(m[1]);
+  return valor == null ? null : Math.round(valor);
+}
+
+function preencherConsumoDeRelatorio() {
+  const area = document.getElementById("relatorio_consumo");
+  const txtBruto = (area.value || "");
+  if (!txtBruto.trim()) {
+    alert("Cole o texto do relatório de vendas primeiro.");
+    return;
+  }
+
+  const txt = txtBruto.toUpperCase();
+  const diasRelInput = document.getElementById("dias_relatorio_consumo");
+  let diasRel = parseInt((diasRelInput.value || "1").replace(",", "."), 10);
+  if (isNaN(diasRel) || diasRel <= 0) diasRel = 1;
+
+  const gcTotal  = extrairPrimeiroNumeroDepoisDoRotulo(txt, "GASOLINA\\s+COMUM");
+  const gaTotal  = extrairPrimeiroNumeroDepoisDoRotulo(txt, "GASOLINA\\s+ADITIVADA");
+  const eTotal   = extrairPrimeiroNumeroDepoisDoRotulo(txt, "ETANOL\\s+COMUM");
+  const dTotal   = extrairPrimeiroNumeroDepoisDoRotulo(txt, "DIESEL\\s+S10");
+
+  if (gcTotal == null && gaTotal == null && eTotal == null && dTotal == null) {
+    alert("Não encontrei as linhas de combustíveis no relatório de vendas.");
+    return;
+  }
+
+  const fator = diasRel;
+
+  if (gcTotal != null) {
+    document.getElementById("gc_consumo").value = (gcTotal / fator).toFixed(0);
+  }
+  if (gaTotal != null) {
+    document.getElementById("ga_consumo").value = (gaTotal / fator).toFixed(0);
+  }
+  if (eTotal != null) {
+    document.getElementById("e_consumo").value = (eTotal / fator).toFixed(0);
+  }
+  if (dTotal != null) {
+    document.getElementById("d_consumo").value = (dTotal / fator).toFixed(0);
+  }
+
+  alert("Consumos/dia preenchidos a partir do relatório de vendas.");
+}
+
+function preencherEstoqueDeSaldo() {
+  const area = document.getElementById("relatorio_saldo");
+  const txtBruto = (area.value || "");
+  if (!txtBruto.trim()) {
+    alert("Cole o texto do relatório de saldos primeiro.");
+    return;
+  }
+
+  const txt = txtBruto.toUpperCase();
+
+  const gcEst = extrairSaldoLitros(txt, "GASOLINA\\s+COMUM");
+  const gaEst = extrairSaldoLitros(txt, "GASOLINA\\s+ADITIVADA");
+  const eEst  = extrairSaldoLitros(txt, "ETANOL\\s+COMUM");
+  const dEst  = extrairSaldoLitros(txt, "DIESEL\\s+S10");
+
+  if (gcEst == null && gaEst == null && eEst == null && dEst == null) {
+    alert("Não encontrei as linhas de combustíveis no relatório de saldos.");
+    return;
+  }
+
+  if (gcEst != null) document.getElementById("gc_estoque").value = gcEst;
+  if (gaEst != null) document.getElementById("ga_estoque").value = gaEst;
+  if (eEst  != null) document.getElementById("e_estoque").value  = eEst;
+  if (dEst  != null) document.getElementById("d_estoque").value  = dEst;
+
+  alert("Estoques atuais preenchidos a partir do relatório de saldos.");
+}
+
+// ------------------- CÁLCULO DO PEDIDO -------------------
 function calcular() {
   try {
     const produtos = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
@@ -257,13 +440,12 @@ function calcular() {
       const transito = lerNumero(prefix + "_transito");
       const capacidade = CAPACIDADES[p];
 
-      // consumo total no horizonte (dias de consumo)
       const consumoPeriodo = consumo * dias;
 
       // necessidade mínima para cobrir o período inteiro
       const necessidade_min = Math.max(consumoPeriodo - (estoque + transito), 0);
 
-      // NOVO: considerar 1 dia de consumo até a chegada do caminhão
+      // considerar 1 dia de consumo até a chegada do caminhão
       const consumoAteEntrega = consumo * LEAD_TIME_DIAS;
 
       // estoque projetado na hora da descarga
