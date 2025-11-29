@@ -200,6 +200,7 @@
     <div class="hint">
       Limites de tanque (L): GC 30.000 • GA 15.000 • Diesel 15.000 • Etanol 15.000.
       Caminhão: 5k + 3k + 3k + 2k + 2k (15.000 L).
+      Cada pedido calculado é salvo localmente no aparelho para futuros históricos.
     </div>
   </div>
 </div>
@@ -256,7 +257,7 @@ function calcular() {
       const necessidade_min = Math.max(consumoPeriodo - (estoque + transito), 0);
       const espaco_livre = Math.max(capacidade - (estoque + transito), 0);
 
-      dados[p] = { consumo, necessidade_min, espaco_livre };
+      dados[p] = { consumo, necessidade_min, espaco_livre, estoque, transito };
       totalMax += espaco_livre;
       totalNecessidade += necessidade_min;
     }
@@ -273,9 +274,13 @@ function calcular() {
       }
     }
 
+    // salva histórico local
+    salvarPedidoLocal(dados, compras, dias);
+
     mostrarResultado(compras, dias);
   } catch (e) {
     alert("Erro nos valores digitados.");
+    console.error(e);
   }
 }
 
@@ -377,6 +382,40 @@ function mostrarResultado(compras, dias) {
   }
   txt += "\nTotal do pedido: " + total + " L";
   document.getElementById("saida").textContent = txt;
+}
+
+function salvarPedidoLocal(dados, compras, dias) {
+  try {
+    const now = new Date();
+    const registro = {
+      timestamp: now.toISOString(),
+      data_hora_local: now.toLocaleString('pt-BR'),
+      dias: dias,
+      total_pedido: 0,
+      produtos: {}
+    };
+
+    for (const p in compras) {
+      const pedido = Math.round(compras[p] || 0);
+      const d = dados[p] || {};
+      registro.produtos[p] = {
+        pedido: pedido,
+        consumo_dia: d.consumo || 0,
+        necessidade_min: d.necessidade_min || 0,
+        espaco_livre: d.espaco_livre || 0,
+        estoque: d.estoque || 0,
+        transito: d.transito || 0
+      };
+      registro.total_pedido += pedido;
+    }
+
+    const chave = "hw_pedidos_combustivel";
+    const atual = JSON.parse(localStorage.getItem(chave) || "[]");
+    atual.push(registro);
+    localStorage.setItem(chave, JSON.stringify(atual));
+  } catch (e) {
+    console.error("Erro ao salvar pedido local:", e);
+  }
 }
 </script>
 </body>
