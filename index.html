@@ -194,12 +194,13 @@
       <div><input id="e_transito" type="number" inputmode="decimal"></div>
     </div>
 
-    <button class="btn" onclick="calcular()">Calcular pedido</button>
+    <button class="btn" type="button" onclick="calcular()">Calcular pedido</button>
 
     <pre id="saida">Preencha os campos acima e toque em "Calcular pedido".</pre>
     <div class="hint">
       Limites de tanque (L): GC 30.000 • GA 15.000 • Diesel 15.000 • Etanol 15.000.
       Caminhão: 5k + 3k + 3k + 2k + 2k (15.000 L).
+      Considera 1 dia de consumo entre o pedido e a chegada do caminhão.
       Cada pedido calculado é salvo localmente no aparelho para futuros históricos.
     </div>
   </div>
@@ -215,6 +216,9 @@ const CAPACIDADES = {
 
 const COMPARTIMENTOS = [5000, 3000, 3000, 2000, 2000];
 const CAMINHAO_CAPACIDADE = COMPARTIMENTOS.reduce((a,b)=>a+b,0);
+
+// dias entre o pedido e a descarga do caminhão
+const LEAD_TIME_DIAS = 1;
 
 function lerNumero(id) {
   const el = document.getElementById(id);
@@ -253,9 +257,20 @@ function calcular() {
       const transito = lerNumero(prefix + "_transito");
       const capacidade = CAPACIDADES[p];
 
+      // consumo total no horizonte (dias de consumo)
       const consumoPeriodo = consumo * dias;
+
+      // necessidade mínima para cobrir o período inteiro
       const necessidade_min = Math.max(consumoPeriodo - (estoque + transito), 0);
-      const espaco_livre = Math.max(capacidade - (estoque + transito), 0);
+
+      // NOVO: considerar 1 dia de consumo até a chegada do caminhão
+      const consumoAteEntrega = consumo * LEAD_TIME_DIAS;
+
+      // estoque projetado na hora da descarga
+      const estoqueChegada = Math.max(estoque + transito - consumoAteEntrega, 0);
+
+      // espaço livre de tanque na hora da descarga
+      const espaco_livre = Math.max(capacidade - estoqueChegada, 0);
 
       dados[p] = { consumo, necessidade_min, espaco_livre, estoque, transito };
       totalMax += espaco_livre;
@@ -274,9 +289,7 @@ function calcular() {
       }
     }
 
-    // salva histórico local
     salvarPedidoLocal(dados, compras, dias);
-
     mostrarResultado(compras, dias);
   } catch (e) {
     alert("Erro nos valores digitados.");
@@ -340,7 +353,8 @@ function pedidoComCompartimentos(produtos, dados) {
     let ok = true;
     for (const p of produtos) {
       if (vol[p] > dados[p].espaco_livre + 1e-6) {
-        ok = false; break;
+        ok = false;
+        break;
       }
     }
     if (!ok) continue;
@@ -374,7 +388,8 @@ function pedidoComCompartimentos(produtos, dados) {
 function mostrarResultado(compras, dias) {
   const ordem = ["Gasolina Comum","Gasolina Aditivada","Diesel S10","Etanol"];
   let total = 0;
-  let txt = "Pedido considerando " + dias + " dia(s) de consumo.\n\n";
+  let txt = "Pedido considerando " + dias + " dia(s) de consumo.\n";
+  txt += "(considerando " + LEAD_TIME_DIAS + " dia de consumo até a chegada do caminhão)\n\n";
   for (const p of ordem) {
     const v = Math.round(compras[p] || 0);
     total += v;
@@ -391,6 +406,7 @@ function salvarPedidoLocal(dados, compras, dias) {
       timestamp: now.toISOString(),
       data_hora_local: now.toLocaleString('pt-BR'),
       dias: dias,
+      lead_time: LEAD_TIME_DIAS,
       total_pedido: 0,
       produtos: {}
     };
