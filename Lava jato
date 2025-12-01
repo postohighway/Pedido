@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lava Jato - Comandas Simples</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f5f5f5;
+    }
+    header {
+      background: #0b7285;
+      color: white;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+    label {
+      font-size: 14px;
+    }
+    input, select, button {
+      font-size: 16px;
+      padding: 6px 8px;
+      margin: 4px 0 8px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      cursor: pointer;
+      border-radius: 4px;
+      border: none;
+      background: #0b7285;
+      color: white;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #868e96;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #e7f5ff;
+      color: #0b7285;
+      margin-left: 6px;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+    }
+    .tabs button {
+      flex: 1;
+      font-size: 14px;
+      padding: 8px;
+      background: #dee2e6;
+      color: #343a40;
+    }
+    .tabs button.active {
+      background: #0b7285;
+      color: white;
+    }
+    @media (min-width: 700px) {
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Lava Jato - Comandas Simples</h1>
+  <div style="font-size: 13px; opacity: .9;">Dados salvos apenas neste aparelho (localStorage)</div>
+</header>
+<div class="container">
+  <div class="card">
+    <div class="tabs">
+      <button id="tab-comanda" class="active">Nova comanda</button>
+      <button id="tab-abertas">Comandas em aberto</button>
+      <button id="tab-clientes">Clientes</button>
+      <button id="tab-backup">Backup</button>
+    </div>
+    <div id="view-comanda">
+      <div class="grid-2">
+        <div>
+          <h2>Abrir comanda</h2>
+          <label>Cliente</label>
+          <select id="cliente-select"></select>
+
+          <label>Placa (opcional)</label>
+          <input id="placa-input" placeholder="ABC1234" />
+
+          <button id="btn-abrir">Abrir comanda</button>
+
+          <div id="msg-abrir" style="font-size: 14px; margin-top: 8px; color: #2b8a3e;"></div>
+        </div>
+        <div>
+          <h2>Serviços cadastrados</h2>
+          <ul id="lista-servicos" style="font-size: 14px;"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-abertas" style="display:none;">
+      <h2>Comandas em aberto</h2>
+      <div id="lista-abertas"></div>
+      <div id="detalhe-comanda"></div>
+    </div>
+
+    <div id="view-clientes" style="display:none;">
+      <h2>Clientes</h2>
+      <label>Novo cliente</label>
+      <input id="cliente-nome" placeholder="Nome do cliente ou empresa" />
+      <button id="btn-add-cliente">Cadastrar cliente</button>
+      <h3>Lista de clientes</h3>
+      <ul id="lista-clientes" style="font-size: 14px;"></ul>
+    </div>
+
+    <div id="view-backup" style="display:none;">
+      <h2>Backup / Restauração</h2>
+      <p style="font-size: 14px;">
+        Aqui você consegue fazer download de um arquivo com todos os dados (clientes, serviços e comandas)
+        e depois restaurar em outro aparelho, se quiser.
+      </p>
+      <button id="btn-download-backup">Baixar backup (.json)</button>
+      <p style="margin-top: 12px; font-size: 14px;">
+        Para restaurar, escolha o arquivo de backup:
+      </p>
+      <input type="file" id="input-backup" accept="application/json" />
+      <div id="msg-backup" style="font-size: 14px; margin-top: 8px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'lavajatoComandasV1';
+
+  function loadData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const initial = {
+        clients: [
+          { id: 1, name: 'Cliente Teste 1' },
+          { id: 2, name: 'Empresa Exemplo Ltda.' }
+        ],
+        services: [
+          { id: 1, name: 'Ducha', base_price: 30.00, pricing_type: 'unitario' },
+          { id: 2, name: 'Ducha com cera líquida', base_price: 40.00, pricing_type: 'unitario' },
+          { id: 3, name: 'Ducha com cera sólida', base_price: 50.00, pricing_type: 'unitario' },
+          { id: 4, name: 'Polimento', base_price: 150.00, pricing_type: 'unitario' },
+          { id: 5, name: 'Polimento dos faróis', base_price: 80.00, pricing_type: 'unitario' },
+          { id: 6, name: 'Pretinho nos pneus', base_price: 10.00, pricing_type: 'unitario' },
+          { id: 7, name: 'Martelinho de ouro (por amassado)', base_price: 80.00, pricing_type: 'por_amassado' }
+        ],
+        orders: [],
+        nextClientId: 3,
+        nextOrderId: 1
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+      return initial;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('Erro ao ler storage, resetando.', e);
+      localStorage.removeItem(STORAGE_KEY);
+      return loadData();
+    }
+  }
+
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  let state = loadData();
+
+  function formatMoney(v) {
+    return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+  }
+
+  function renderClientesSelect() {
+    const sel = document.getElementById('cliente-select');
+    sel.innerHTML = '';
+    const optEmpty = document.createElement('option');
+    optEmpty.value = '';
+    optEmpty.textContent = 'Selecione um cliente';
+    sel.appendChild(optEmpty);
+
+    state.clients.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderClientesLista() {
+    const ul = document.getElementById('lista-clientes');
+    ul.innerHTML = '';
+    state.clients.forEach(c => {
+      const li = document.createElement('li');
+      li.textContent = c.name + ' (id ' + c.id + ')';
+      ul.appendChild(li);
+    });
+  }
+
+  function renderServicos() {
+    const ul = document.getElementById('lista-servicos');
+    ul.innerHTML = '';
+    state.services.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = s.name + ' - ' + formatMoney(s.base_price);
+      if (s.pricing_type === 'por_amassado') {
+        const span = document.createElement('span');
+        span.className = 'pill';
+        span.textContent = 'por amassado';
+        li.appendChild(span);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  function renderComandasAbertas() {
+    const div = document.getElementById('lista-abertas');
+    div.innerHTML = '';
+
+    const abertas = state.orders.filter(o => o.status === 'aberta');
+    if (abertas.length === 0) {
+      div.innerHTML = '<p>Nenhuma comanda em aberto.</p>';
+      document.getElementById('detalhe-comanda').innerHTML = '';
+      return;
+    }
+
+    const ul = document.createElement('ul');
+    abertas.forEach(o => {
+      const li = document.createElement('li');
+      const cliente = state.clients.find(c => c.id === o.client_id);
+      li.style.cursor = 'pointer';
+      li.style.padding = '4px 0';
+      li.textContent = '#' + o.id + ' - ' + (cliente ? cliente.name : 'Cliente ' + o.client_id) +
+        ' - Placa: ' + (o.plate || '-') +
+        ' - Total: ' + formatMoney(o.total);
+      li.onclick = () => mostrarDetalheComanda(o.id);
+      ul.appendChild(li);
+    });
+
+    div.appendChild(ul);
+  }
+
+  function mostrarDetalheComanda(orderId) {
+    const o = state.orders.find(ord => ord.id === orderId);
+    if (!o) return;
+    const cliente = state.clients.find(c => c.id === o.client_id);
+    const div = document.getElementById('detalhe-comanda');
+
+    const itens = o.items || [];
+    let html = '';
+    html += '<h3>Comanda #' + o.id + '</h3>';
+    html += '<p><strong>Cliente:</strong> ' + (cliente ? cliente.name : 'Cliente ' + o.client_id) + '</p>';
+    html += '<p><strong>Placa:</strong> ' + (o.plate || '-') + '</p>';
+    html += '<p><strong>Status:</strong> ' + o.status + '</p>';
+    html += '<p><strong>Total:</strong> ' + formatMoney(o.total) + '</p>';
+
+    html += '<h4>Itens</h4>';
+    if (itens.length === 0) {
+      html += '<p>Nenhum item ainda.</p>';
+    } else {
+      html += '<ul>';
+      itens.forEach(it => {
+        const s = state.services.find(se => se.id === it.service_id);
+        html += '<li>' +
+          (s ? s.name : 'Serviço ' + it.service_id) +
+          ' - Qtde: ' + it.quantity +
+          ' - Unit: ' + formatMoney(it.unit_price) +
+          ' - Total: ' + formatMoney(it.total) +
+          '</li>';
+      });
+      html += '</ul>';
+    }
+
+    html += '<h4>Adicionar item</h4>';
+    html += '<label>Serviço</label><br />';
+    html += '<select id="add-servico"></select><br />';
+    html += '<label>Quantidade</label><br />';
+    html += '<input id="add-qty" type="number" min="1" value="1" /><br />';
+    html += '<label>Preço unitário</label><br />';
+    html += '<input id="add-preco" type="number" step="0.01" /><br />';
+    html += '<button id="btn-add-item">Adicionar item</button>';
+
+    html += '<hr />';
+    html += '<button class="secondary" id="btn-fechar-comanda">Fechar comanda</button>';
+
+    div.innerHTML = html;
+
+    const selServ = document.getElementById('add-servico');
+    state.services.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name + ' (' + formatMoney(s.base_price) + ')';
+      selServ.appendChild(opt);
+    });
+
+    document.getElementById('btn-add-item').onclick = () => {
+      const servId = Number(document.getElementById('add-servico').value);
+      const qty = Number(document.getElementById('add-qty').value) || 1;
+      const precoInput = document.getElementById('add-preco').value;
+
+      let preco = 0;
+      if (precoInput) {
+        preco = Number(precoInput);
+      } else {
+        const servObj = state.services.find(function(s) { return s.id === servId; });
+        preco = servObj ? servObj.base_price : 0;
+      }
+
+      if (!servId || !preco) {
+        alert('Selecione o serviço e informe ou confirme o preço.');
+        return;
+      }
+
+      const total = qty * preco;
+      o.items = o.items || [];
+      o.items.push({
+        service_id: servId,
+        quantity: qty,
+        unit_price: preco,
+        total: total
+      });
+      o.total = (o.total || 0) + total;
+      saveData(state);
+      mostrarDetalheComanda(orderId);
+      renderComandasAbertas();
+    };
+
+    document.getElementById('btn-fechar-comanda').onclick = () => {
+      if (!confirm('Deseja fechar esta comanda?')) return;
+      o.status = 'fechada';
+      saveData(state);
+      renderComandasAbertas();
+      document.getElementById('detalhe-comanda').innerHTML = '';
+    };
+  }
+
+  document.getElementById('btn-abrir').onclick = () => {
+    const clienteId = Number(document.getElementById('cliente-select').value);
+    const placa = document.getElementById('placa-input').value.trim().toUpperCase();
+    const msg = document.getElementById('msg-abrir');
+
+    if (!clienteId) {
+      alert('Selecione um cliente');
+      return;
+    }
+
+    const newOrder = {
+      id: state.nextOrderId++,
+      client_id: clienteId,
+      plate: placa || null,
+      status: 'aberta',
+      total: 0,
+      items: [],
+      created_at: new Date().toISOString()
+    };
+
+    state.orders.push(newOrder);
+    saveData(state);
+    renderComandasAbertas();
+    msg.textContent = 'Comanda #' + newOrder.id + ' aberta com sucesso.';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+    document.getElementById('placa-input').value = '';
+  };
+
+  document.getElementById('btn-add-cliente').onclick = () => {
+    const nomeInput = document.getElementById('cliente-nome');
+    const nome = nomeInput.value.trim();
+    if (!nome) {
+      alert('Informe o nome do cliente');
+      return;
+    }
+    const novo = {
+      id: state.nextClientId++,
+      name: nome
+    };
+    state.clients.push(novo);
+    saveData(state);
+    nomeInput.value = '';
+    renderClientesSelect();
+    renderClientesLista();
+  };
+
+  function showView(view) {
+    document.getElementById('view-comanda').style.display = 'none';
+    document.getElementById('view-abertas').style.display = 'none';
+    document.getElementById('view-clientes').style.display = 'none';
+    document.getElementById('view-backup').style.display = 'none';
+
+    document.getElementById('view-' + view).style.display = 'block';
+
+    document.getElementById('tab-comanda').classList.remove('active');
+    document.getElementById('tab-abertas').classList.remove('active');
+    document.getElementById('tab-clientes').classList.remove('active');
+    document.getElementById('tab-backup').classList.remove('active');
+
+    document.getElementById('tab-' + view).classList.add('active');
+
+    if (view === 'abertas') {
+      renderComandasAbertas();
+    }
+  }
+
+  document.getElementById('tab-comanda').onclick = () => showView('comanda');
+  document.getElementById('tab-abertas').onclick = () => showView('abertas');
+  document.getElementById('tab-clientes').onclick = () => showView('clientes');
+  document.getElementById('tab-backup').onclick = () => showView('backup');
+
+  document.getElementById('btn-download-backup').onclick = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'lavajato-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById('input-backup').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        if (!json.clients || !json.services || !json.orders) {
+          throw new Error('Formato inválido');
+        }
+        state = json;
+        saveData(state);
+        renderClientesSelect();
+        renderClientesLista();
+        renderServicos();
+        renderComandasAbertas();
+        document.getElementById('msg-backup').textContent = 'Backup restaurado com sucesso.';
+      } catch (err) {
+        console.error(err);
+        alert('Arquivo de backup inválido.');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  renderClientesSelect();
+  renderClientesLista();
+  renderServicos();
+  renderComandasAbertas();
+</script>
+</body>
+</html>
